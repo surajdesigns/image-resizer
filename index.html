@@ -632,7 +632,8 @@
                         ? item.file.type.split('/')[1] 
                         : settings.format.split('/')[1];
                     const baseName = item.file.name.substring(0, item.file.name.lastIndexOf('.')) || item.file.name;
-                    item.newName = `${baseName}_processed.${ext === 'jpeg' ? 'jpg' : ext}`;
+                    // Removed _processed suffix to keep original name
+                    item.newName = `${baseName}.${ext === 'jpeg' ? 'jpg' : ext}`;
                     
                     item.status = 'done';
                 } catch (err) {
