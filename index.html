@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PixShift | Bulk Image Converter</title>
+    <title>PixPro | Professional Image Processor</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -13,8 +13,11 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8' },
-                        dark: { 800: '#1f2937', 900: '#111827' }
+                        brand: { 50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1' },
+                        dark: { 800: '#1f2937', 900: '#111827', 950: '#0b0f19' }
+                    },
+                    animation: {
+                        'pulse-fast': 'pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                     }
                 }
             }
@@ -24,185 +27,837 @@
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- JSZip for zipping files -->
+    <!-- JSZip -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Cropper.js (Lightweight standard for cropping) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-        
         body { font-family: 'Inter', sans-serif; }
         
         /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
         .dark ::-webkit-scrollbar-thumb { background: #4b5563; }
         
-        /* Dropzone Animation */
-        .drag-active {
-            border-color: #3b82f6 !important;
-            background-color: rgba(59, 130, 246, 0.1) !important;
-            transform: scale(1.01);
-        }
-
-        /* Loading Spinner */
         .loader {
-            border: 3px solid #f3f3f3;
+            width: 18px; height: 18px;
+            border: 2px solid #fff;
+            border-bottom-color: transparent;
             border-radius: 50%;
-            border-top: 3px solid #3b82f6;
-            width: 20px;
-            height: 20px;
-            -webkit-animation: spin 1s linear infinite; /* Safari */
-            animation: spin 1s linear infinite;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Smooth Transitions */
-        .card-transition { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none; background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; height: 16px; width: 16px;
+            border-radius: 50%; background: #0ea5e9; margin-top: -6px; cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px; background: #e2e8f0; border-radius: 2px;
+        }
+        .dark input[type=range]::-webkit-slider-runnable-track { background: #4b5563; }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-800 transition-colors duration-300 dark:bg-dark-900 dark:text-gray-100 min-h-screen flex flex-col">
+<body class="bg-gray-50 text-gray-800 transition-colors duration-300 dark:bg-dark-950 dark:text-gray-100 min-h-screen flex flex-col">
 
     <!-- Header -->
-    <header class="sticky top-0 z-50 bg-white/80 dark:bg-dark-800/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-700">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <header class="sticky top-0 z-40 bg-white/90 dark:bg-dark-900/90 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center text-white text-xl shadow-lg shadow-primary-500/30">
-                    <i class="fa-solid fa-layer-group"></i>
+                <div class="w-9 h-9 bg-brand-600 rounded-lg flex items-center justify-center text-white shadow-lg shadow-brand-500/20">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
                 </div>
-                <h1 class="text-xl font-bold tracking-tight">Pix<span class="text-primary-600">Shift</span></h1>
+                <h1 class="text-xl font-bold tracking-tight">Pix<span class="text-brand-600">Pro</span></h1>
             </div>
-            
-            <div class="flex items-center gap-4">
-                <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400">
-                    <i class="fa-solid fa-moon dark:hidden"></i>
-                    <i class="fa-solid fa-sun hidden dark:block"></i>
-                </button>
-            </div>
+            <button id="themeToggle" class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <i class="fa-solid fa-moon dark:hidden"></i>
+                <i class="fa-solid fa-sun hidden dark:block text-yellow-400"></i>
+            </button>
         </div>
     </header>
 
     <!-- Main Content -->
     <main class="flex-grow container mx-auto px-4 py-8 max-w-7xl">
         
-        <!-- Controls & Dropzone Area -->
-        <div class="space-y-6">
+        <!-- Controls Container -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8">
             
-            <!-- Global Settings Toolbar -->
-            <div class="bg-white dark:bg-dark-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col md:flex-row gap-6 items-center justify-between">
-                
-                <div class="flex flex-col md:flex-row gap-6 w-full md:w-auto">
-                    <!-- Format Selector -->
-                    <div class="flex flex-col gap-2">
-                        <label class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 tracking-wider">Output Format</label>
-                        <select id="globalFormat" class="bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary-500 focus:border-transparent outline-none transition-all">
-                            <option value="image/jpeg">JPG / JPEG</option>
-                            <option value="image/png">PNG (Lossless)</option>
-                            <option value="image/webp">WEBP (Modern)</option>
-                        </select>
+            <!-- Left: Settings Panel -->
+            <div class="lg:col-span-4 space-y-4">
+                <div class="bg-white dark:bg-dark-900 rounded-2xl p-5 shadow-sm border border-gray-200 dark:border-gray-800">
+                    
+                    <!-- Tabs -->
+                    <div class="flex border-b border-gray-200 dark:border-gray-700 mb-5">
+                        <button onclick="switchTab('convert')" id="tab-convert" class="flex-1 pb-3 text-sm font-medium border-b-2 border-brand-600 text-brand-600 active-tab">Convert</button>
+                        <button onclick="switchTab('resize')" id="tab-resize" class="flex-1 pb-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">Resize</button>
+                        <button onclick="switchTab('enhance')" id="tab-enhance" class="flex-1 pb-3 text-sm font-medium border-b-2 border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">Enhance</button>
                     </div>
 
-                    <!-- Quality Slider -->
-                    <div class="flex flex-col gap-2 w-full md:w-48">
-                        <div class="flex justify-between">
-                            <label class="text-xs font-semibold uppercase text-gray-500 dark:text-gray-400 tracking-wider">Quality</label>
-                            <span id="qualityValue" class="text-xs font-mono text-primary-600 font-bold">90%</span>
+                    <!-- Convert Settings -->
+                    <div id="panel-convert" class="space-y-4 settings-panel">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase text-gray-500 mb-2">Output Format</label>
+                            <select id="optFormat" class="w-full bg-gray-50 dark:bg-dark-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                                <option value="original">Keep Original Format</option>
+                                <option value="image/jpeg">JPG / JPEG</option>
+                                <option value="image/png">PNG (Lossless)</option>
+                                <option value="image/webp" selected>WEBP (Modern & Small)</option>
+                                <option value="image/bmp">BMP</option>
+                                <!-- Browser write support for these is rare, handled via fallback -->
+                                <option value="image/tiff">TIFF (Browser dependent)</option> 
+                                <option value="image/gif">GIF (Static)</option>
+                            </select>
                         </div>
-                        <input type="range" id="globalQuality" min="10" max="100" value="90" class="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary-600">
+                        <div>
+                            <div class="flex justify-between mb-2">
+                                <label class="text-xs font-semibold uppercase text-gray-500">Quality</label>
+                                <span id="qualityDisplay" class="text-xs font-mono text-brand-600">92%</span>
+                            </div>
+                            <input type="range" id="optQuality" min="10" max="100" value="92" class="w-full">
+                        </div>
+                    </div>
+
+                    <!-- Resize Settings -->
+                    <div id="panel-resize" class="space-y-4 hidden settings-panel">
+                        <div class="flex gap-2">
+                            <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                <input type="radio" name="resizeMode" value="none" checked class="text-brand-600 focus:ring-brand-500"> No Resize
+                            </label>
+                            <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                <input type="radio" name="resizeMode" value="dims" class="text-brand-600 focus:ring-brand-500"> Dimensions
+                            </label>
+                            <label class="flex items-center gap-2 text-sm cursor-pointer">
+                                <input type="radio" name="resizeMode" value="pct" class="text-brand-600 focus:ring-brand-500"> Percentage
+                            </label>
+                        </div>
+
+                        <div id="resizeDims" class="hidden space-y-3">
+                            <div class="flex gap-3">
+                                <div>
+                                    <label class="text-xs text-gray-500">Width (px)</label>
+                                    <input type="number" id="optWidth" placeholder="Auto" class="w-full bg-gray-50 dark:bg-dark-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm">
+                                </div>
+                                <div>
+                                    <label class="text-xs text-gray-500">Height (px)</label>
+                                    <input type="number" id="optHeight" placeholder="Auto" class="w-full bg-gray-50 dark:bg-dark-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="resizePct" class="hidden">
+                             <div class="flex justify-between mb-2">
+                                <label class="text-xs font-semibold text-gray-500">Scale</label>
+                                <span id="scaleDisplay" class="text-xs font-mono text-brand-600">100%</span>
+                            </div>
+                            <input type="range" id="optScale" min="10" max="200" value="100" class="w-full">
+                        </div>
+                    </div>
+
+                    <!-- Enhance Settings -->
+                    <div id="panel-enhance" class="space-y-4 hidden settings-panel">
+                         <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+                             <label class="flex items-center gap-2 cursor-pointer">
+                                 <input type="checkbox" id="optAutoEnhance" class="rounded text-brand-600 focus:ring-brand-500 w-4 h-4">
+                                 <span class="text-sm font-medium text-blue-800 dark:text-blue-200"><i class="fa-solid fa-wand-magic"></i> Auto-Enhance (AI Style)</span>
+                             </label>
+                             <p class="text-xs text-blue-600 dark:text-blue-300 mt-1 ml-6">Boosts clarity, contrast, and sharpness automatically.</p>
+                         </div>
+
+                         <div>
+                             <div class="flex justify-between mb-2">
+                                <label class="text-xs font-semibold uppercase text-gray-500">Sharpening</label>
+                                <span id="sharpDisplay" class="text-xs font-mono text-brand-600">0</span>
+                            </div>
+                            <input type="range" id="optSharpen" min="0" max="100" value="0" class="w-full">
+                         </div>
+                         
+                         <div>
+                             <div class="flex justify-between mb-2">
+                                <label class="text-xs font-semibold uppercase text-gray-500">Contrast</label>
+                                <span id="contrastDisplay" class="text-xs font-mono text-brand-600">0</span>
+                            </div>
+                            <input type="range" id="optContrast" min="-50" max="50" value="0" class="w-full">
+                         </div>
+                    </div>
+
+                    <!-- Main Actions -->
+                    <div class="pt-4 border-t border-gray-200 dark:border-gray-800 flex flex-col gap-3">
+                        <button id="processBtn" disabled class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white rounded-xl font-semibold shadow-lg shadow-brand-500/30 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all flex items-center justify-center gap-2">
+                            <i class="fa-solid fa-play"></i> Process All Images
+                        </button>
+                        <div class="flex gap-2">
+                            <button id="downloadBtn" disabled class="flex-1 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium shadow-md shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                                <i class="fa-solid fa-download"></i> Download ZIP
+                            </button>
+                             <button id="clearBtn" class="px-4 py-2.5 bg-gray-100 hover:bg-red-50 hover:text-red-600 dark:bg-dark-800 dark:hover:bg-red-900/20 text-gray-600 dark:text-gray-400 rounded-lg transition-colors border border-transparent hover:border-red-200 dark:hover:border-red-900/50">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Action Buttons -->
-                <div class="flex items-center gap-3 w-full md:w-auto">
-                    <button id="convertBtn" disabled class="flex-1 md:flex-none px-6 py-2.5 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium shadow-lg shadow-primary-600/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-bolt"></i> Convert All
-                    </button>
-                    <button id="downloadZipBtn" disabled class="flex-1 md:flex-none px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium shadow-lg shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none transition-all flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-file-zipper"></i> Download ZIP
-                    </button>
-                    <button id="clearBtn" class="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Clear All">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
+                <!-- Progress Card -->
+                <div id="progressCard" class="hidden bg-white dark:bg-dark-900 rounded-2xl p-5 shadow-sm border border-gray-200 dark:border-gray-800">
+                    <div class="flex justify-between text-sm font-medium mb-2">
+                        <span id="progressStatus">Processing...</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-100 dark:bg-dark-800 rounded-full h-2.5 overflow-hidden">
+                        <div id="progressBar" class="bg-brand-600 h-2.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                    <div class="mt-2 text-xs text-gray-500 flex justify-between">
+                        <span id="progressCount">0/0</span>
+                        <span id="timeRemaining">--:--</span>
+                    </div>
                 </div>
             </div>
 
-            <!-- Drag & Drop Zone -->
-            <div id="dropZone" class="relative group cursor-pointer">
-                <input type="file" id="fileInput" multiple accept="image/*" class="hidden">
-                <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl p-12 text-center transition-all duration-300 bg-white dark:bg-dark-800 hover:border-primary-500 dark:hover:border-primary-500">
-                    <div class="pointer-events-none space-y-4">
-                        <div class="w-16 h-16 bg-primary-50 dark:bg-primary-900/20 text-primary-600 rounded-full flex items-center justify-center mx-auto text-2xl mb-4 group-hover:scale-110 transition-transform duration-300">
+            <!-- Right: Dropzone & Grid -->
+            <div class="lg:col-span-8 flex flex-col h-full">
+                
+                <!-- Dropzone -->
+                <div id="dropZone" class="relative group cursor-pointer mb-6">
+                    <input type="file" id="fileInput" multiple class="hidden">
+                    <div class="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl p-10 text-center transition-all duration-300 bg-white dark:bg-dark-900 hover:border-brand-500 dark:hover:border-brand-500 group-hover:bg-brand-50/50 dark:group-hover:bg-brand-900/10">
+                        <div class="w-16 h-16 bg-brand-50 dark:bg-brand-900/20 text-brand-600 rounded-full flex items-center justify-center mx-auto text-3xl mb-4 group-hover:scale-110 transition-transform">
                             <i class="fa-solid fa-cloud-arrow-up"></i>
                         </div>
-                        <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Drop images here</h3>
-                        <p class="text-gray-500 dark:text-gray-400 text-sm max-w-sm mx-auto">
-                            Support for JPG, PNG, WEBP, BMP, GIF. No file size limits.
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Drop images here or click to upload</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                            Supported: JPG, PNG, WEBP, GIF, BMP, TIFF, HEIC, SVG.
                         </p>
-                        <p class="text-xs text-primary-600 font-medium pt-2">or click to browse</p>
+                        <p class="text-xs text-gray-400 mt-1">Unlimited files. No size limit.</p>
                     </div>
                 </div>
-            </div>
 
-            <!-- Stats Bar (Hidden initially) -->
-            <div id="statsBar" class="hidden flex items-center justify-between text-sm px-4 py-2 bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-200 rounded-lg border border-blue-100 dark:border-blue-800">
-                <span id="fileCount">0 images loaded</span>
-                <span id="totalSize">0 MB total</span>
-            </div>
+                <!-- Stats Bar -->
+                <div id="statsBar" class="hidden flex justify-between items-center px-4 py-2 bg-white dark:bg-dark-900 border-b border-gray-200 dark:border-gray-800 rounded-t-xl">
+                    <span class="text-xs font-medium text-gray-500 uppercase tracking-wide">Queue</span>
+                    <div class="text-sm text-gray-600 dark:text-gray-300">
+                        <span id="totalFiles">0</span> images • <span id="totalSize">0 MB</span>
+                    </div>
+                </div>
 
-            <!-- Image Grid -->
-            <div id="imageGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-20">
-                <!-- Cards injected via JS -->
-            </div>
-            
-            <!-- Empty State -->
-            <div id="emptyState" class="hidden text-center py-20">
-                <p class="text-gray-400 dark:text-gray-600">No images added yet.</p>
-            </div>
+                <!-- Grid -->
+                <div id="imageGrid" class="flex-grow grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-20 content-start">
+                    <!-- Cards injected here -->
+                </div>
+                
+                <!-- Empty State -->
+                <div id="emptyState" class="hidden flex-grow flex flex-col items-center justify-center text-center py-12 opacity-60">
+                    <i class="fa-regular fa-image text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
+                    <p class="text-gray-400">No images ready for processing</p>
+                </div>
 
+            </div>
         </div>
     </main>
 
-    <!-- Hidden Canvas for Processing -->
-    <canvas id="processor" class="hidden"></canvas>
+    <!-- Crop Modal -->
+    <div id="cropModal" class="fixed inset-0 z-50 hidden bg-black/90 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-dark-900 w-full max-w-4xl h-[90vh] rounded-2xl flex flex-col overflow-hidden shadow-2xl">
+            <div class="p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center bg-white dark:bg-dark-900 z-10">
+                <h3 class="font-bold text-lg"><i class="fa-solid fa-crop-simple text-brand-600 mr-2"></i>Crop Image</h3>
+                <button onclick="closeCropModal()" class="w-8 h-8 rounded-full bg-gray-100 dark:bg-dark-800 hover:bg-gray-200 flex items-center justify-center">
+                    <i class="fa-solid fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="flex-grow bg-black/50 relative overflow-hidden flex items-center justify-center p-4">
+                <div class="max-h-full max-w-full">
+                    <img id="cropImageTarget" src="" class="max-w-full max-h-full block">
+                </div>
+            </div>
 
-    <!-- Scripts -->
+            <div class="p-4 border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-dark-900 flex flex-wrap gap-4 justify-between items-center">
+                <div class="flex gap-2">
+                    <button onclick="setCropRatio(NaN)" class="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-dark-800 rounded hover:bg-gray-200 dark:hover:bg-dark-700">Free</button>
+                    <button onclick="setCropRatio(1)" class="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-dark-800 rounded hover:bg-gray-200 dark:hover:bg-dark-700">1:1</button>
+                    <button onclick="setCropRatio(16/9)" class="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-dark-800 rounded hover:bg-gray-200 dark:hover:bg-dark-700">16:9</button>
+                    <button onclick="setCropRatio(4/3)" class="px-3 py-1.5 text-xs font-medium bg-gray-100 dark:bg-dark-800 rounded hover:bg-gray-200 dark:hover:bg-dark-700">4:3</button>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="closeCropModal()" class="px-5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-800 rounded-lg">Cancel</button>
+                    <button onclick="applyCrop()" class="px-5 py-2 text-sm font-medium bg-brand-600 hover:bg-brand-700 text-white rounded-lg shadow-lg shadow-brand-500/20">Apply Crop</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden Processor Canvas -->
+    <canvas id="procCanvas" class="hidden"></canvas>
+
     <script>
-        // --- State Management ---
+        // --- Configuration & State ---
         const state = {
-            files: [], // Array of file objects with metadata
-            isProcessing: false,
-            darkMode: localStorage.getItem('theme') === 'dark'
+            files: [], // { id, file, preview, status, processedBlob, cropData (if any), newName }
+            processing: false,
+            cropper: null,
+            currentCropId: null,
+            settings: {
+                format: 'image/webp',
+                quality: 0.92,
+                resizeMode: 'none', // none, dims, pct
+                width: null,
+                height: null,
+                scale: 1,
+                enhance: {
+                    auto: false,
+                    sharpen: 0,
+                    contrast: 0
+                }
+            },
+            stats: { totalSize: 0 }
         };
 
-        // --- DOM Elements ---
-        const dropZone = document.getElementById('dropZone');
-        const fileInput = document.getElementById('fileInput');
-        const imageGrid = document.getElementById('imageGrid');
-        const emptyState = document.getElementById('emptyState');
-        const convertBtn = document.getElementById('convertBtn');
-        const downloadZipBtn = document.getElementById('downloadZipBtn');
-        const clearBtn = document.getElementById('clearBtn');
-        const globalFormat = document.getElementById('globalFormat');
-        const globalQuality = document.getElementById('globalQuality');
-        const qualityValue = document.getElementById('qualityValue');
-        const statsBar = document.getElementById('statsBar');
-        const processorCanvas = document.getElementById('processor');
-        const themeToggle = document.getElementById('themeToggle');
-        const html = document.documentElement;
+        const DOM = {
+            dropZone: document.getElementById('dropZone'),
+            fileInput: document.getElementById('fileInput'),
+            grid: document.getElementById('imageGrid'),
+            empty: document.getElementById('emptyState'),
+            statsBar: document.getElementById('statsBar'),
+            processBtn: document.getElementById('processBtn'),
+            downloadBtn: document.getElementById('downloadBtn'),
+            clearBtn: document.getElementById('clearBtn'),
+            canvas: document.getElementById('procCanvas'),
+            progressBar: document.getElementById('progressBar'),
+            progressCard: document.getElementById('progressCard'),
+            progressCount: document.getElementById('progressCount'),
+            progressPercent: document.getElementById('progressPercent'),
+            progressStatus: document.getElementById('progressStatus'),
+            
+            // Settings Inputs
+            optFormat: document.getElementById('optFormat'),
+            optQuality: document.getElementById('optQuality'),
+            optAutoEnhance: document.getElementById('optAutoEnhance'),
+            optSharpen: document.getElementById('optSharpen'),
+            optContrast: document.getElementById('optContrast'),
+            resizeInputs: document.getElementsByName('resizeMode'),
+            
+            // Crop Modal
+            cropModal: document.getElementById('cropModal'),
+            cropImg: document.getElementById('cropImageTarget')
+        };
 
-        // --- Theme Logic ---
-        function initTheme() {
-            if (state.darkMode) html.classList.add('dark');
-            else html.classList.remove('dark');
+        // --- Initialization ---
+        function init() {
+            setupEventListeners();
+            setupTheme();
+            updateUI();
         }
-        themeToggle.addEventListener('click', () => {
-            state.darkMode = !state.darkMode;
-            localStorage.setItem('theme', state.darkMode ? 'dark' : 'light');
-            initTheme();
-        });
-        initTheme();
 
-        // --- Helper Functions ---
+        function setupTheme() {
+            const isDark = localStorage.getItem('theme') === 'dark';
+            if(isDark) document.documentElement.classList.add('dark');
+            
+            document.getElementById('themeToggle').addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                localStorage.setItem('theme', document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+            });
+        }
+
+        // --- Tab Logic ---
+        window.switchTab = (tab) => {
+            document.querySelectorAll('.settings-panel').forEach(el => el.classList.add('hidden'));
+            document.getElementById(`panel-${tab}`).classList.remove('hidden');
+            
+            document.querySelectorAll('button[id^="tab-"]').forEach(el => {
+                el.classList.remove('border-brand-600', 'text-brand-600');
+                el.classList.add('border-transparent', 'text-gray-500');
+            });
+            const active = document.getElementById(`tab-${tab}`);
+            active.classList.remove('border-transparent', 'text-gray-500');
+            active.classList.add('border-brand-600', 'text-brand-600');
+        };
+
+        // --- Settings Logic ---
+        DOM.optFormat.addEventListener('change', (e) => state.settings.format = e.target.value);
+        DOM.optQuality.addEventListener('input', (e) => {
+            state.settings.quality = e.target.value / 100;
+            document.getElementById('qualityDisplay').textContent = e.target.value + '%';
+        });
+        
+        DOM.resizeInputs.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                state.settings.resizeMode = e.target.value;
+                document.getElementById('resizeDims').classList.toggle('hidden', e.target.value !== 'dims');
+                document.getElementById('resizePct').classList.toggle('hidden', e.target.value !== 'pct');
+            });
+        });
+
+        document.getElementById('optScale').addEventListener('input', (e) => {
+            state.settings.scale = e.target.value / 100;
+            document.getElementById('scaleDisplay').textContent = e.target.value + '%';
+        });
+
+        DOM.optSharpen.addEventListener('input', (e) => document.getElementById('sharpDisplay').textContent = e.target.value);
+        DOM.optContrast.addEventListener('input', (e) => document.getElementById('contrastDisplay').textContent = e.target.value);
+
+        // --- File Handling ---
+        function setupEventListeners() {
+            DOM.dropZone.addEventListener('click', () => DOM.fileInput.click());
+            DOM.fileInput.addEventListener('change', (e) => addFiles(e.target.files));
+            
+            ['dragenter', 'dragover'].forEach(e => {
+                DOM.dropZone.addEventListener(e, (ev) => {
+                    ev.preventDefault();
+                    DOM.dropZone.classList.add('border-brand-500', 'bg-brand-50', 'dark:bg-dark-800');
+                });
+            });
+            ['dragleave', 'drop'].forEach(e => {
+                DOM.dropZone.addEventListener(e, (ev) => {
+                    ev.preventDefault();
+                    DOM.dropZone.classList.remove('border-brand-500', 'bg-brand-50', 'dark:bg-dark-800');
+                });
+            });
+            DOM.dropZone.addEventListener('drop', (e) => {
+                const dt = e.dataTransfer;
+                // Handle folder uploads via recursive directory reading if needed, 
+                // but standard flat file drop works for most bulk cases.
+                addFiles(dt.files);
+            });
+
+            DOM.processBtn.addEventListener('click', startProcessing);
+            DOM.downloadBtn.addEventListener('click', downloadZip);
+            DOM.clearBtn.addEventListener('click', clearAll);
+        }
+
+        function addFiles(fileList) {
+            if(state.processing) return;
+            
+            const newFiles = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+            if(newFiles.length === 0) return;
+
+            newFiles.forEach(file => {
+                state.files.push({
+                    id: Math.random().toString(36).substr(2, 9),
+                    file: file,
+                    preview: URL.createObjectURL(file),
+                    status: 'pending', // pending, processing, done, error
+                    cropData: null,
+                    processedBlob: null
+                });
+            });
+            
+            updateUI();
+        }
+
+        function removeFile(id) {
+            if(state.processing) return;
+            const idx = state.files.findIndex(f => f.id === id);
+            if(idx > -1) {
+                URL.revokeObjectURL(state.files[idx].preview);
+                state.files.splice(idx, 1);
+                updateUI();
+            }
+        }
+
+        function clearAll() {
+            if(state.processing) return;
+            state.files.forEach(f => URL.revokeObjectURL(f.preview));
+            state.files = [];
+            state.stats.totalSize = 0;
+            DOM.downloadBtn.disabled = true;
+            DOM.progressCard.classList.add('hidden');
+            updateUI();
+        }
+
+        // --- UI Rendering ---
+        function updateUI() {
+            // Stats
+            state.stats.totalSize = state.files.reduce((acc, f) => acc + f.file.size, 0);
+            document.getElementById('totalFiles').textContent = state.files.length;
+            document.getElementById('totalSize').textContent = formatBytes(state.stats.totalSize);
+            
+            if(state.files.length === 0) {
+                DOM.grid.innerHTML = '';
+                DOM.empty.classList.remove('hidden');
+                DOM.statsBar.classList.add('hidden');
+                DOM.processBtn.disabled = true;
+            } else {
+                DOM.empty.classList.add('hidden');
+                DOM.statsBar.classList.remove('hidden');
+                DOM.processBtn.disabled = state.files.some(f => f.status === 'processing'); // Only disable if actively processing
+                
+                // Diff-based or smart re-render recommended for large lists, 
+                // but simple rebuild is safer for maintaining state in this single-file logic.
+                // To optimize: only append new, remove deleted. 
+                // For simplicity & robustness: Rebuild grid.
+                DOM.grid.innerHTML = '';
+                
+                // Limit visible items if > 500 to prevent DOM lag? No, user requested unlimited.
+                // We use a DocumentFragment.
+                const frag = document.createDocumentFragment();
+                
+                state.files.forEach(item => {
+                    const el = document.createElement('div');
+                    el.className = `relative group bg-white dark:bg-dark-800 rounded-xl overflow-hidden border ${item.status === 'done' ? 'border-green-500' : 'border-gray-200 dark:border-gray-700'} shadow-sm hover:shadow-md transition-all`;
+                    
+                    let badge = '';
+                    if(item.status === 'done') badge = '<div class="absolute top-2 right-2 bg-green-500 text-white text-[10px] px-2 py-0.5 rounded font-bold shadow-sm"><i class="fa-solid fa-check"></i> DONE</div>';
+                    if(item.status === 'error') badge = '<div class="absolute top-2 right-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded font-bold shadow-sm">ERROR</div>';
+                    if(item.cropData) badge += '<div class="absolute bottom-2 left-2 bg-brand-600 text-white text-[10px] px-2 py-0.5 rounded font-bold shadow-sm"><i class="fa-solid fa-crop"></i> CROPPED</div>';
+
+                    el.innerHTML = `
+                        <div class="aspect-square bg-gray-100 dark:bg-dark-950 relative group">
+                            <img src="${item.preview}" class="w-full h-full object-cover">
+                            ${badge}
+                            <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                ${item.status !== 'processing' ? `
+                                <button onclick="openCrop('${item.id}')" class="w-8 h-8 bg-white dark:bg-dark-800 rounded-full flex items-center justify-center hover:bg-brand-500 hover:text-white transition-colors" title="Crop">
+                                    <i class="fa-solid fa-crop-simple"></i>
+                                </button>
+                                <button onclick="removeFile('${item.id}')" class="w-8 h-8 bg-white dark:bg-dark-800 rounded-full flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors" title="Remove">
+                                    <i class="fa-solid fa-trash"></i>
+                                </button>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="p-3">
+                            <p class="text-xs font-medium truncate text-gray-700 dark:text-gray-200" title="${item.file.name}">${item.file.name}</p>
+                            <div class="flex justify-between mt-1 text-[10px] text-gray-500">
+                                <span>${formatBytes(item.file.size)}</span>
+                                <span class="uppercase">${item.file.name.split('.').pop()}</span>
+                            </div>
+                        </div>
+                    `;
+                    frag.appendChild(el);
+                });
+                DOM.grid.appendChild(frag);
+            }
+        }
+
+        // --- Cropping System ---
+        window.openCrop = (id) => {
+            const item = state.files.find(f => f.id === id);
+            if(!item) return;
+
+            state.currentCropId = id;
+            DOM.cropImg.src = item.preview;
+            DOM.cropModal.classList.remove('hidden');
+
+            if(state.cropper) state.cropper.destroy();
+            state.cropper = new Cropper(DOM.cropImg, {
+                viewMode: 1,
+                autoCropArea: 0.8,
+                responsive: true
+            });
+        };
+
+        window.closeCropModal = () => {
+            DOM.cropModal.classList.add('hidden');
+            if(state.cropper) {
+                state.cropper.destroy();
+                state.cropper = null;
+            }
+            state.currentCropId = null;
+        };
+
+        window.setCropRatio = (ratio) => {
+            if(state.cropper) state.cropper.setAspectRatio(ratio);
+        };
+
+        window.applyCrop = () => {
+            if(!state.cropper || !state.currentCropId) return;
+            const data = state.cropper.getData();
+            const item = state.files.find(f => f.id === state.currentCropId);
+            item.cropData = data;
+            
+            // Update preview with cropped version? 
+            // For performance, we just store data and render badge.
+            // But showing the cropped result is better UX.
+            state.cropper.getCroppedCanvas().toBlob(blob => {
+                URL.revokeObjectURL(item.preview);
+                item.preview = URL.createObjectURL(blob);
+                closeCropModal();
+                updateUI();
+            });
+        };
+
+        // --- Processing Logic (The Core) ---
+        async function startProcessing() {
+            if(state.files.length === 0) return;
+            
+            // UI Lock
+            state.processing = true;
+            DOM.processBtn.disabled = true;
+            DOM.clearBtn.disabled = true;
+            DOM.dropZone.style.pointerEvents = 'none';
+            DOM.progressCard.classList.remove('hidden');
+            DOM.downloadBtn.disabled = true;
+
+            // Prepare Settings
+            const settings = {
+                format: DOM.optFormat.value,
+                quality: parseFloat(DOM.optQuality.value) / 100,
+                resize: {
+                    mode: Array.from(DOM.resizeInputs).find(r=>r.checked).value,
+                    w: parseInt(document.getElementById('optWidth').value) || 0,
+                    h: parseInt(document.getElementById('optHeight').value) || 0,
+                    scale: parseFloat(document.getElementById('optScale').value) / 100
+                },
+                enhance: {
+                    auto: DOM.optAutoEnhance.checked,
+                    sharpen: parseInt(DOM.optSharpen.value),
+                    contrast: parseInt(DOM.optContrast.value)
+                }
+            };
+
+            let processedCount = 0;
+            const total = state.files.length;
+            const startTime = Date.now();
+
+            // Process Loop
+            for (let i = 0; i < total; i++) {
+                const item = state.files[i];
+                item.status = 'processing';
+                updateProgress(processedCount, total, startTime);
+
+                try {
+                    const blob = await processSingleImage(item, settings);
+                    item.processedBlob = blob;
+                    
+                    // Generate Filename
+                    const ext = settings.format === 'original' 
+                        ? item.file.type.split('/')[1] 
+                        : settings.format.split('/')[1];
+                    const baseName = item.file.name.substring(0, item.file.name.lastIndexOf('.')) || item.file.name;
+                    item.newName = `${baseName}_processed.${ext === 'jpeg' ? 'jpg' : ext}`;
+                    
+                    item.status = 'done';
+                } catch (err) {
+                    console.error("Processing failed for", item.file.name, err);
+                    item.status = 'error';
+                }
+
+                processedCount++;
+                updateProgress(processedCount, total, startTime);
+                
+                // Critical: Yield to main thread to keep UI responsive
+                if(i % 3 === 0) await new Promise(r => setTimeout(r, 10));
+            }
+
+            // Cleanup & Finish
+            state.processing = false;
+            DOM.processBtn.disabled = false;
+            DOM.clearBtn.disabled = false;
+            DOM.dropZone.style.pointerEvents = 'auto';
+            DOM.downloadBtn.disabled = false;
+            DOM.progressStatus.textContent = "Processing Complete!";
+            updateUI();
+        }
+
+        async function processSingleImage(item, settings) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    const ctx = DOM.canvas.getContext('2d');
+                    
+                    // 1. Calculate Dimensions (Resize)
+                    let w = img.width;
+                    let h = img.height;
+
+                    // Apply Crop dimensions if present first? 
+                    // No, crop usually happens on original, then resize. 
+                    // But here we rely on the Cropper data which is relative to original.
+                    let sx = 0, sy = 0, sWidth = w, sHeight = h;
+
+                    if(item.cropData) {
+                        sx = item.cropData.x;
+                        sy = item.cropData.y;
+                        sWidth = item.cropData.width;
+                        sHeight = item.cropData.height;
+                        
+                        // Validating crop bounds
+                        if(sx < 0) sx = 0;
+                        if(sy < 0) sy = 0;
+                        if(sx + sWidth > w) sWidth = w - sx;
+                        if(sy + sHeight > h) sHeight = h - sy;
+                        
+                        // New logical base dimensions after crop
+                        w = sWidth;
+                        h = sHeight;
+                    }
+
+                    // Apply Resize logic to new dimensions
+                    let targetW = w, targetH = h;
+                    if(settings.resize.mode === 'dims') {
+                        if(settings.resize.w && settings.resize.h) {
+                            targetW = settings.resize.w;
+                            targetH = settings.resize.h;
+                        } else if(settings.resize.w) {
+                            targetW = settings.resize.w;
+                            targetH = (h / w) * targetW;
+                        } else if(settings.resize.h) {
+                            targetH = settings.resize.h;
+                            targetW = (w / h) * targetH;
+                        }
+                    } else if(settings.resize.mode === 'pct') {
+                        targetW = w * settings.resize.scale;
+                        targetH = h * settings.resize.scale;
+                    }
+
+                    // Set Canvas
+                    DOM.canvas.width = targetW;
+                    DOM.canvas.height = targetH;
+                    
+                    // 2. Draw (Resampling)
+                    // Use 'high' quality smoothing
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    
+                    // Draw sliced source to scaled destination
+                    ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, targetW, targetH);
+
+                    // 3. Enhancement (Pixel Manipulation)
+                    if(settings.enhance.auto || settings.enhance.sharpen > 0 || settings.enhance.contrast !== 0) {
+                        let imageData = ctx.getImageData(0, 0, targetW, targetH);
+                        
+                        // Auto Enhance Defaults
+                        let sharpenAmt = settings.enhance.sharpen;
+                        let contrastAmt = settings.enhance.contrast;
+                        
+                        if(settings.enhance.auto) {
+                            sharpenAmt = Math.max(sharpenAmt, 20); // Base sharpening
+                            contrastAmt = Math.max(contrastAmt, 10); // Slight pop
+                        }
+
+                        if(contrastAmt !== 0) applyContrast(imageData.data, contrastAmt);
+                        if(sharpenAmt > 0) applySharpen(imageData, ctx, targetW, targetH, sharpenAmt / 100);
+                        else ctx.putImageData(imageData, 0, 0); // Only put back if we didn't use the sharpen function's put
+                    }
+
+                    // 4. Export
+                    let mime = settings.format;
+                    if(mime === 'original') mime = item.file.type;
+                    
+                    // Fallback for unsupported write formats
+                    if(mime === 'image/tiff' || mime === 'image/bmp' || mime === 'image/svg+xml') {
+                        // Browsers generally default to PNG if type is unknown/unsupported in toBlob
+                        // We force PNG for safety if user selected weird formats
+                        if(!['image/jpeg', 'image/png', 'image/webp'].includes(mime)) {
+                             mime = 'image/png';
+                        }
+                    }
+
+                    DOM.canvas.toBlob(blob => {
+                        if(blob) resolve(blob);
+                        else reject('Export failed');
+                    }, mime, settings.quality);
+                };
+                img.onerror = reject;
+                img.src = item.preview; // Use preview URL which is blob of original
+            });
+        }
+
+        // --- Algorithmic Filters ---
+        
+        function applyContrast(data, contrast) {
+            const factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = factor * (data[i] - 128) + 128;     // R
+                data[i+1] = factor * (data[i+1] - 128) + 128; // G
+                data[i+2] = factor * (data[i+2] - 128) + 128; // B
+            }
+        }
+
+        // Fast Convolution for sharpening
+        function applySharpen(imageData, ctx, w, h, mix) {
+            // Kernel for sharpening
+            // [ 0 -1  0 ]
+            // [-1  5 -1 ]
+            // [ 0 -1  0 ]
+            
+            const w4 = w * 4;
+            const data = imageData.data;
+            const buff = new Uint8ClampedArray(data); // Copy for reading
+
+            for (let y = 1; y < h - 1; y++) {
+                for (let x = 1; x < w - 1; x++) {
+                    const i = (y * w + x) * 4;
+                    
+                    // Convolve RGB
+                    for (let c = 0; c < 3; c++) {
+                        const val = 
+                              buff[i - w4 + c] * -1 // Top
+                            + buff[i - 4 + c]  * -1 // Left
+                            + buff[i + c]      * 5 // Center
+                            + buff[i + 4 + c]  * -1 // Right
+                            + buff[i + w4 + c] * -1; // Bottom
+                        
+                        // Mix original with sharpened based on 'mix' amount
+                        data[i + c] = data[i + c] * (1 - mix) + val * mix;
+                    }
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        // --- Progress & Zip ---
+        function updateProgress(done, total, startTime) {
+            const pct = Math.round((done / total) * 100);
+            DOM.progressBar.style.width = `${pct}%`;
+            DOM.progressPercent.textContent = `${pct}%`;
+            DOM.progressCount.textContent = `${done}/${total}`;
+            
+            // Time Estimate
+            const elapsed = Date.now() - startTime;
+            if(done > 0) {
+                const perItem = elapsed / done;
+                const remaining = (total - done) * perItem;
+                DOM.progressCard.querySelector('#timeRemaining').textContent = 
+                    `~${Math.ceil(remaining/1000)}s remaining`;
+            }
+        }
+
+        async function downloadZip() {
+            const zip = new JSZip();
+            const folder = zip.folder("pixpro_output");
+            
+            const processed = state.files.filter(f => f.status === 'done' && f.processedBlob);
+            
+            // Integrity Check
+            if(processed.length === 0) {
+                alert("No processed images found.");
+                return;
+            }
+
+            // Add files to Zip
+            processed.forEach(f => {
+                folder.file(f.newName, f.processedBlob);
+            });
+
+            // UI Feedback
+            const btnHtml = DOM.downloadBtn.innerHTML;
+            DOM.downloadBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Zipping...';
+            DOM.downloadBtn.disabled = true;
+
+            try {
+                const content = await zip.generateAsync({ type: "blob" });
+                const url = URL.createObjectURL(content);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `pixpro_batch_${new Date().getTime()}.zip`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (err) {
+                alert("ZIP Generation Failed: " + err.message);
+            } finally {
+                DOM.downloadBtn.innerHTML = btnHtml;
+                DOM.downloadBtn.disabled = false;
+            }
+        }
+
         const formatBytes = (bytes, decimals = 2) => {
             if (bytes === 0) return '0 Bytes';
             const k = 1024;
@@ -212,281 +867,8 @@
             return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
         };
 
-        const getExt = (mime) => {
-            switch(mime) {
-                case 'image/jpeg': return 'jpg';
-                case 'image/png': return 'png';
-                case 'image/webp': return 'webp';
-                default: return 'jpg';
-            }
-        };
-
-        const createPreview = (file) => URL.createObjectURL(file);
-
-        // --- Core Logic ---
-
-        // 1. Handle File Input
-        function handleFiles(newFiles) {
-            const validFiles = Array.from(newFiles).filter(f => f.type.startsWith('image/'));
-            
-            validFiles.forEach(file => {
-                const id = Math.random().toString(36).substr(2, 9);
-                state.files.push({
-                    id,
-                    originalFile: file,
-                    status: 'pending', // pending, converting, done, error
-                    previewUrl: createPreview(file),
-                    convertedBlob: null,
-                    newName: null
-                });
-            });
-
-            updateUI();
-        }
-
-        // 2. Drag & Drop Events
-        dropZone.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
-
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, preventDefaults, false);
-        });
-
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        ['dragenter', 'dragover'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => dropZone.classList.add('drag-active'), false);
-        });
-
-        ['dragleave', 'drop'].forEach(eventName => {
-            dropZone.addEventListener(eventName, () => dropZone.classList.remove('drag-active'), false);
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            handleFiles(files);
-        });
-
-        // 3. UI Updates
-        function updateUI() {
-            // Update Stats
-            const totalSize = state.files.reduce((acc, f) => acc + f.originalFile.size, 0);
-            document.getElementById('fileCount').textContent = `${state.files.length} images`;
-            document.getElementById('totalSize').textContent = formatBytes(totalSize);
-            
-            if (state.files.length > 0) {
-                statsBar.classList.remove('hidden');
-                emptyState.classList.add('hidden');
-                convertBtn.disabled = false;
-            } else {
-                statsBar.classList.add('hidden');
-                emptyState.classList.remove('hidden');
-                convertBtn.disabled = true;
-                downloadZipBtn.disabled = true;
-            }
-
-            // Re-render Grid (Optimized: usually we'd diff, but for simplicity we rebuild or append. 
-            // Rebuilding entire grid for large lists is bad, so we'll just clear and rebuild for this demo, 
-            // but a real app should append).
-            renderGrid();
-        }
-
-        function renderGrid() {
-            imageGrid.innerHTML = '';
-            state.files.forEach(item => {
-                const card = document.createElement('div');
-                card.className = `relative bg-white dark:bg-dark-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-hidden group card-transition hover:shadow-md ${item.status === 'done' ? 'border-green-500 dark:border-green-500' : ''}`;
-                
-                // Determine Badge Status
-                let statusBadge = '';
-                if(item.status === 'pending') statusBadge = `<span class="bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 text-[10px] font-bold px-2 py-1 rounded">PENDING</span>`;
-                else if(item.status === 'converting') statusBadge = `<span class="bg-blue-100 text-blue-600 dark:bg-blue-900 dark:text-blue-300 text-[10px] font-bold px-2 py-1 rounded flex items-center gap-1"><div class="loader w-3 h-3 border-2"></div> PROCESSING</span>`;
-                else if(item.status === 'done') statusBadge = `<span class="bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-300 text-[10px] font-bold px-2 py-1 rounded"><i class="fa-solid fa-check"></i> DONE</span>`;
-
-                card.innerHTML = `
-                    <div class="aspect-video bg-gray-100 dark:bg-gray-900 relative overflow-hidden">
-                        <img src="${item.previewUrl}" class="w-full h-full object-cover" alt="${item.originalFile.name}">
-                        <div class="absolute top-2 right-2">${statusBadge}</div>
-                        <button onclick="removeFile('${item.id}')" class="absolute top-2 left-2 w-6 h-6 bg-black/50 hover:bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity">
-                            <i class="fa-solid fa-times"></i>
-                        </button>
-                    </div>
-                    <div class="p-3">
-                        <div class="flex justify-between items-start mb-1">
-                            <p class="text-sm font-medium truncate w-3/4 text-gray-700 dark:text-gray-200" title="${item.originalFile.name}">${item.originalFile.name}</p>
-                            <span class="text-xs text-gray-400 uppercase">${item.originalFile.name.split('.').pop()}</span>
-                        </div>
-                        <div class="flex justify-between items-center text-xs text-gray-500 dark:text-gray-400">
-                            <span>${formatBytes(item.originalFile.size)}</span>
-                            ${item.status === 'done' && item.convertedBlob ? `<span class="text-green-600 dark:text-green-400 font-medium">→ ${formatBytes(item.convertedBlob.size)}</span>` : ''}
-                        </div>
-                        ${item.status === 'done' ? `
-                        <div class="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-end">
-                            <button onclick="downloadSingle('${item.id}')" class="text-xs text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1">
-                                Download <i class="fa-solid fa-download"></i>
-                            </button>
-                        </div>` : ''}
-                    </div>
-                `;
-                imageGrid.appendChild(card);
-            });
-        }
-
-        // 4. File Operations
-        window.removeFile = (id) => {
-            if (state.isProcessing) return; // Lock during processing
-            const index = state.files.findIndex(f => f.id === id);
-            if (index > -1) {
-                URL.revokeObjectURL(state.files[index].previewUrl); // Cleanup memory
-                state.files.splice(index, 1);
-                updateUI();
-            }
-        };
-
-        window.downloadSingle = (id) => {
-            const file = state.files.find(f => f.id === id);
-            if (file && file.convertedBlob) {
-                const url = URL.createObjectURL(file.convertedBlob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = file.newName;
-                a.click();
-                URL.revokeObjectURL(url);
-            }
-        };
-
-        clearBtn.addEventListener('click', () => {
-            if (state.isProcessing) return;
-            state.files.forEach(f => URL.revokeObjectURL(f.previewUrl));
-            state.files = [];
-            downloadZipBtn.disabled = true;
-            updateUI();
-        });
-
-        // 5. Conversion Logic
-        globalQuality.addEventListener('input', (e) => {
-            qualityValue.textContent = `${e.target.value}%`;
-        });
-
-        convertBtn.addEventListener('click', async () => {
-            if (state.isProcessing) return;
-            state.isProcessing = true;
-            convertBtn.disabled = true;
-            clearBtn.disabled = true;
-            dropZone.style.pointerEvents = 'none';
-            
-            const format = globalFormat.value;
-            const quality = parseInt(globalQuality.value) / 100;
-            const ext = getExt(format);
-
-            // Process sequentially to avoid freezing UI
-            for (let i = 0; i < state.files.length; i++) {
-                const fileItem = state.files[i];
-                
-                // Skip if already done
-                if (fileItem.status === 'done') continue;
-
-                fileItem.status = 'converting';
-                updateUI(); // Refresh grid to show spinner
-
-                try {
-                    const result = await processImage(fileItem.originalFile, format, quality);
-                    fileItem.convertedBlob = result;
-                    fileItem.status = 'done';
-                    
-                    // Generate new name
-                    const originalName = fileItem.originalFile.name;
-                    const nameWithoutExt = originalName.substring(0, originalName.lastIndexOf('.')) || originalName;
-                    fileItem.newName = `${nameWithoutExt}.${ext}`;
-
-                } catch (error) {
-                    console.error("Conversion failed", error);
-                    fileItem.status = 'error';
-                }
-
-                // Yield to main thread to keep UI responsive
-                await new Promise(r => setTimeout(r, 20)); 
-            }
-
-            state.isProcessing = false;
-            convertBtn.disabled = false;
-            clearBtn.disabled = false;
-            dropZone.style.pointerEvents = 'auto';
-            downloadZipBtn.disabled = false;
-            updateUI();
-        });
-
-        function processImage(file, format, quality) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.onload = () => {
-                    // Set canvas dimensions to original
-                    processorCanvas.width = img.width;
-                    processorCanvas.height = img.height;
-                    const ctx = processorCanvas.getContext('2d');
-                    
-                    // Clean canvas
-                    ctx.clearRect(0, 0, processorCanvas.width, processorCanvas.height);
-                    
-                    // Handle PNG transparency if converting to JPEG (add white background)
-                    if (format === 'image/jpeg') {
-                        ctx.fillStyle = '#FFFFFF';
-                        ctx.fillRect(0, 0, processorCanvas.width, processorCanvas.height);
-                    }
-
-                    // Draw image
-                    ctx.drawImage(img, 0, 0);
-
-                    // Export
-                    processorCanvas.toBlob((blob) => {
-                        if (blob) resolve(blob);
-                        else reject(new Error('Canvas to Blob failed'));
-                    }, format, quality);
-                };
-                img.onerror = reject;
-                img.src = URL.createObjectURL(file);
-            });
-        }
-
-        // 6. Zip Download Logic
-        downloadZipBtn.addEventListener('click', async () => {
-            const zip = new JSZip();
-            const folder = zip.folder("converted_images");
-            
-            // Add files
-            let count = 0;
-            state.files.forEach(file => {
-                if (file.status === 'done' && file.convertedBlob) {
-                    folder.file(file.newName, file.convertedBlob);
-                    count++;
-                }
-            });
-
-            if (count === 0) return;
-
-            // Update button text
-            const originalText = downloadZipBtn.innerHTML;
-            downloadZipBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Zipping...`;
-
-            try {
-                const content = await zip.generateAsync({ type: "blob" });
-                const url = URL.createObjectURL(content);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = "pixshift_converted.zip";
-                a.click();
-                URL.revokeObjectURL(url);
-            } catch (err) {
-                console.error("Zip failed", err);
-                alert("Failed to generate ZIP file.");
-            } finally {
-                downloadZipBtn.innerHTML = originalText;
-            }
-        });
+        // Run
+        init();
 
     </script>
 </body>
